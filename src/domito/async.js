@@ -1,58 +1,32 @@
 /** @template T @typedef {import("./reactive").Dynamic<T>} Dynamic */
-import { Effect, queueUpdate } from "./reactive";
+import { Effect, Scheduler } from "./reactive";
 
 export default $async;
 export { $async, Async };
 
 /**
- * @template T
- * @typedef {{
- *  loading: boolean;
- *  data: T | undefined;
- *  error: Error | undefined
- * }} AsyncSnapshot
- */
-
-/**
- * @template T
- * @template {any[]} A
- * @typedef {{
- *  auto: boolean
- *  initialData: T | undefined;
- *  onLoad?: () => void
- *  onSuccess?: (data: T) => void
- *  onError?: (error: Error) => void
- * }} AsyncOptions
- */
-
-/** @template T @template {any[]} A @typedef {(...args: A) => Promise<T>} AsyncTask */
-/** @template T @template {any[]} A @typedef {Partial<AsyncOptions<T, A>>} AsyncInit */
-
-/**
- * @template T
- * @template {any[]} A
- * @param {AsyncTask<T, A>} task
- * @param {AsyncInit<T, A>} [init]
+ * @template {AsyncTask<any[], any>} T
+ * @param {T} task
+ * @param {AsyncInit<T>} [init]
  */
 function $async(task, init) {
   return new Async(task, init);
 }
 
 /**
- * @template T
- * @template {any[]} A
- * @extends {Effect<AsyncSnapshot<T>>}
+ * @template {AsyncTask<any[], any>} T
+ * @extends {Effect<AsyncSnapshot<AsyncResult<T>>>}
  */
 class Async extends Effect {
-  /** @type {AsyncTask<T, A>} */ task;
-  /** @type {AsyncOptions<T, A>} */ options;
+  /** @type {T} */ asyncTask;
+  /** @type {AsyncOptions<T>} */ options;
   /** @type {number} */ iteration;
 
   /**
-   * @param  {AsyncTask<T, A>} task
-   * @param {AsyncInit<T, A>} [init]
+   * @param  {T} asyncTask
+   * @param {AsyncInit<T>} [init]
    */
-  constructor(task, init) {
+  constructor(asyncTask, init) {
     super(() => ({
       loading: init?.auto ?? true,
       error: undefined,
@@ -67,16 +41,17 @@ class Async extends Effect {
       onSuccess: init?.onSuccess,
     };
 
-    this.task = task;
+    this.asyncTask = asyncTask;
     this.iteration = 0;
 
+    // if the auto option is disabled, prevent the Effect from reacting to changes in its deps
     if (!this.options.auto) {
-      this.compute = undefined;
+      this.task = undefined;
       return;
     }
 
-    this.compute = () => {
-      const fakeArgs = /** @type {A} */ (/** @type {unknown} */ ([]));
+    this.task = () => {
+      const fakeArgs = /** @type {Parameters<T>} */ (/** @type {unknown} */ ([]));
       this.run(...fakeArgs);
       return this._value;
     };
@@ -109,7 +84,8 @@ class Async extends Effect {
   };
 
   /**
-   * @param  {A} args
+   * @param  {Parameters<T>} args
+   * @returns {Promise<AsyncResult<T> | undefined>}
    */
   async run(...args) {
     const iteration = ++this.iteration;
@@ -118,23 +94,58 @@ class Async extends Effect {
       if (!this._value.loading) {
         this._value = { ...this._value, loading: true };
         this.options.onLoad?.();
-        queueUpdate(this);
+        Scheduler.requestUpdate(this);
       }
 
-      const data = await this.task?.(...args);
+      const data = await this.asyncTask?.(...args);
 
-      if (iteration < this.iteration) return this._value;
+      if (iteration < this.iteration) return this._value.data;
 
       this._value = { loading: false, error: undefined, data };
       this.options.onSuccess?.(data);
     } catch (error) {
-      if (iteration < this.iteration) return this._value;
+      if (iteration < this.iteration) return this._value.data;
 
       this._value = { loading: false, error: /** @type {Error} */ (error), data: undefined };
       this.options.onError?.(/** @type {Error} */ (error));
     }
 
-    queueUpdate(this);
-    return this._value;
+    Scheduler.requestUpdate(this);
+    return this._value.data;
   }
 }
+
+/**
+ * @template {AsyncTask<any[], any>} T
+ * @typedef {Partial<AsyncOptions<T>>} AsyncInit
+ */
+
+/**
+ * @template {AsyncTask<any[], any>} T
+ * @typedef {ReturnType<T> extends Promise<infer U> ? U : never} AsyncResult
+ */
+
+/**
+ * @template {any[]} A
+ * @template T
+ * @typedef {(...args: A) => Promise<T>} AsyncTask */
+
+/**
+ * @template T
+ * @typedef {{
+ *  loading: boolean;
+ *  data: T | undefined;
+ *  error: Error | undefined
+ * }} AsyncSnapshot
+ */
+
+/**
+ * @template {AsyncTask<any[], any>} T
+ * @typedef {{
+ *  auto: boolean
+ *  initialData: AsyncResult<T> | undefined;
+ *  onLoad?: () => void
+ *  onSuccess?: (data: AsyncResult<T>) => void
+ *  onError?: (error: Error) => void
+ * }} AsyncOptions
+ */

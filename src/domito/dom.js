@@ -5,11 +5,6 @@ export { render, element };
 export { $text, $when, $index, $map };
 export { onConnected, onDisconnected, connected, disconnected };
 
-/** @type {HTMLElement | undefined} */
-let ELEMENT;
-
-/** @template {HTMLElement} E @typedef {string | ((element: E) => void)} ElementInit */
-
 /**
  * @template {keyof HTMLElementTagNameMap} T
  * @overload
@@ -39,22 +34,25 @@ let ELEMENT;
  * @returns {HTMLElement}
  */
 function element(tag, init) {
-  const element = tag instanceof HTMLElement ? tag : document.createElement(tag);
-  const outerElement = ELEMENT;
+  const context = tag instanceof HTMLElement ? tag : document.createElement(tag);
+  const outerElement = element.context;
 
-  ELEMENT = element;
-  if (typeof init === "function") init(element);
-  if (typeof init === "string") element.append(init);
-  ELEMENT = outerElement;
+  element.context = context;
+  if (typeof init === "function") init(context);
+  if (typeof init === "string") context.append(init);
+  element.context = outerElement;
 
-  return element;
+  return context;
 }
 
+/** @type {HTMLElement | undefined} */
+element.context = undefined; // tracks the currently created element
+
 /**
- * @param {() => HTMLElement | DocumentFragment} create
  * @param {HTMLElement} root
+ * @param {() => HTMLElement | DocumentFragment} create
  */
-function render(create, root) {
+function render(root, create) {
   const element = create();
   root.append(element);
   connected(element);
@@ -86,7 +84,7 @@ function $when($condition, callback) {
   fragment.append(comment);
 
   $(() => {
-    const value = typeof $condition === "function" ? $condition() : $condition.value;
+    const value = resolve($condition);
 
     if (value) {
       if (!element) {
@@ -248,16 +246,14 @@ function $map($items, callback) {
  * @param {() => void} callback
  */
 function onConnected(callback) {
-  let element = ELEMENT;
-  element?.addEventListener("connected", callback);
+  element.context?.addEventListener("connected", callback, { once: true });
 }
 
 /**
  * @param {() => void} callback
  */
 function onDisconnected(callback) {
-  let element = ELEMENT;
-  element?.addEventListener("disconnected", callback);
+  element.context?.addEventListener("disconnected", callback, { once: true });
 }
 
 /**
@@ -275,3 +271,8 @@ function disconnected(node) {
   for (const child of node.childNodes) disconnected(child);
   node.dispatchEvent(new Event("disconnected"));
 }
+
+/**
+ * @template {HTMLElement} E
+ * @typedef {string | ((element: E) => void)} ElementInit
+ */

@@ -1,33 +1,24 @@
 export default $;
-export { $, $signal, $effect, $scope, Signal, Effect, Scope };
-
-/** @template T @typedef {Signal<T> | (() => T)} Dynamic */
-/** @typedef {Set<Effect<any>>} Subscribers */
-/** @typedef {Set<Signal<any>>} Dependencies */
-
-/** @type {Scope |undefined } */
-let SCOPE; // tracks currently active Scope
-
-/** @type {Effect<any> | undefined } */
-let EFFECT; // tracks currently active Effect
+export { $, $signal, $effect, $scope };
+export { Signal, Effect, Scope, Scheduler };
 
 /**
  * @template T
  * @overload
- * @param {() => T} value
+ * @param {Task<T>} value
  * @returns {Effect<T>}
  */
 
 /**
  * @template T
  * @overload
- * @param {T } value
+ * @param {T} value
  * @returns {Signal<T>}
  */
 
 /**
  * @template T
- * @param {T | (() => T)} value
+ * @param {T | Task<T>} value
  * @returns {Signal<T> | Effect<T>}
  */
 function $(value) {
@@ -62,7 +53,7 @@ function $effect(compute) {
  */
 function $scope(task) {
   const scope = new Scope();
-  scope.wrap(task);
+  scope.run(task);
   return scope;
 }
 
@@ -73,22 +64,28 @@ class Signal {
   static id = 0;
 
   /** @type {number} */ id;
-  /** @type {Scope | undefined} */ outerScope;
-  /** @type {Subscribers} */ subscribers;
+  /** @type {Scope | undefined} */ scope;
+
+  /** @type {ReactiveNodes} */ dependencies;
+  /** @type {ReactiveNodes} */ subscribers;
   /** @type {T} */ _value;
 
   /**
    * @param {T} initialValue
    */
   constructor(initialValue) {
-    this.id = Signal.id++;
+    this.id = Effect.id++;
     this._value = initialValue;
+    this.dependencies = new Set();
     this.subscribers = new Set();
-    addMember(this);
+    Scope.addMember(this);
   }
 
+  /**
+   * @returns {T}
+   */
   get value() {
-    addDependency(this);
+    Effect.addDependency(this);
     return this._value;
   }
 
@@ -96,10 +93,19 @@ class Signal {
    * @param {T} newValue
    */
   set value(newValue) {
+    Effect.addSubscriber(this);
     if (newValue !== this._value) {
       this._value = newValue;
-      queueUpdate(this);
+      Scheduler.requestUpdate(this);
     }
+  }
+
+  get depth() {
+    let depth = this.scope?.depth ?? -1;
+    for (const dependency of this.dependencies) {
+      depth = Math.max(depth, dependency.depth);
+    }
+    return depth + 1;
   }
 
   /**
@@ -107,30 +113,18 @@ class Signal {
    */
   mutate(mutation) {
     mutation(this._value);
-    queueUpdate(this);
-  }
-
-  /**
-   * @param {Effect<any>} effect
-   */
-  subscribe(effect) {
-    this.subscribers.add(effect);
-    effect.dependencies.add(this);
-  }
-
-  /**
-   * @param {Effect<any>} effect
-   */
-  unsubscribe(effect) {
-    this.subscribers.delete(effect);
-    effect.dependencies.delete(this);
+    Scheduler.requestUpdate(this);
   }
 
   dispose() {
-    QUEUE.delete(this);
-    for (const effect of Array.from(this.subscribers)) effect.dispose();
-    this.outerScope?.members.delete(this);
-    this.outerScope = undefined;
+    for (const dependency of this.dependencies) dependency.subscribers.delete(this);
+    this.dependencies.clear();
+
+    for (const subscriber of this.subscribers) subscriber.dependencies.delete(this);
+    this.subscribers.clear();
+
+    this.scope?.members.delete(this);
+    this.scope = undefined;
   }
 }
 
@@ -139,23 +133,44 @@ class Signal {
  * @extends {Signal<T>}
  */
 class Effect extends Signal {
-  /** @type {Dependencies} */ dependencies;
-  /** @type {(() => T) | undefined} */ compute;
+  /** @type {Effect<any> | undefined} */
+  static context; // tracks currently active Effect
+
+  /** @type {Task<T> | undefined} */ task;
 
   /**
-   * @param {() => T} compute
+   * @param {Task<T>} task
    */
-  constructor(compute) {
+  constructor(task) {
     super(/** @type {T} */ (undefined));
-
-    this.compute = compute;
-    this.dependencies = new Set();
-
+    this.task = task;
     this.update(this);
   }
 
+  /**
+   * @param {Signal<any>} dependency
+   */
+  static addDependency(dependency) {
+    if (Effect.context && dependency !== Effect.context) {
+      Effect.context.dependencies.add(dependency);
+      dependency.subscribers.add(Effect.context);
+    }
+  }
+
+  /**
+   * @param {Signal<any>} subscriber
+   */
+  static addSubscriber(subscriber) {
+    if (Effect.context && subscriber !== Effect.context) {
+      Effect.context.subscribers.add(subscriber);
+    }
+  }
+
+  /**
+   * @returns {T}
+   */
   get value() {
-    addDependency(this);
+    Effect.addDependency(this);
     return this._value;
   }
 
@@ -163,44 +178,56 @@ class Effect extends Signal {
     throw new Error("Effect values are read-only");
   }
 
-  valueOf() {
-    return this.value;
-  }
-
   /**
    * @param {this | undefined} context
    */
   update(context = undefined) {
-    if (!this.compute) return;
-    const outerEffect = EFFECT;
-    const outerScope = SCOPE;
-    EFFECT = context;
-    SCOPE = this.outerScope;
-    this._value = this.compute();
-    SCOPE = outerScope;
-    EFFECT = outerEffect;
-  }
+    if (!this.task) return;
 
-  dispose() {
-    super.dispose();
-    for (const dependency of Array.from(this.dependencies)) dependency.unsubscribe(this);
+    const outerEffect = Effect.context;
+    const outerScope = Scope.context;
+
+    Effect.context = context;
+    Scope.context = this.scope;
+
+    const result = this.task(this._value);
+    if (result !== undefined) this._value = result;
+
+    Scope.context = outerScope;
+    Effect.context = outerEffect;
   }
 }
 
 class Scope {
+  /** @type {Scope | undefined} */
+  static context; // tracks currently active Scope
+
   static id = 0;
 
   /** @type {number} */ id;
+  /** @type {number} */ depth;
+
   /** @type {Scope | undefined} */ outerScope;
   /** @type {Set<Scope>} */ innerScopes;
-  /** @type {Set<Signal<any>>} */ members;
+  /** @type {ReactiveNodes} */ members;
 
   constructor() {
     this.id = Scope.id++;
     this.members = new Set();
-    this.outerScope = SCOPE;
+    this.outerScope = Scope.context;
     this.outerScope?.innerScopes.add(this);
     this.innerScopes = new Set();
+    this.depth = this.outerScope ? this.outerScope.depth + 1 : 0;
+  }
+
+  /**
+   * @param {Signal<any> | Effect<any>} signal
+   */
+  static addMember(signal) {
+    if (Scope.context) {
+      signal.scope = Scope.context;
+      Scope.context.members.add(signal);
+    }
   }
 
   /**
@@ -208,10 +235,10 @@ class Scope {
    * @param {() => T} task
    * @returns {T}
    */
-  wrap(task) {
-    SCOPE = this;
+  run(task) {
+    Scope.context = this;
     const result = task();
-    SCOPE = this.outerScope;
+    Scope.context = this.outerScope;
     return result;
   }
 
@@ -221,21 +248,48 @@ class Scope {
     this.outerScope?.innerScopes.delete(this);
     this.outerScope = undefined;
   }
+}
 
-  debug() {
-    let str = `- Scope #${this.id}:\n`;
+class Scheduler {
+  /** @type {boolean} */ static updating = false;
+  /** @type {ReactiveNodes} */ static queue = new Set();
 
-    for (const member of this.members) {
-      const val = JSON.stringify(member._value);
-      str += `  - ${member instanceof Effect ? "Effect" : "Signal"} #${member.id}: ${val}\n`;
+  /**
+   * @param {Signal<any>} signal
+   */
+  static requestUpdate(signal) {
+    Scheduler.queue.add(signal);
+
+    // if an update was already requested in the current main task, stop here
+    if (Scheduler.updating) return;
+
+    // run the effects after the current main task is finished
+    // so we can queue all the signals that were changed together
+    Scheduler.updating = true;
+    queueMicrotask(Scheduler.update);
+  }
+
+  static update() {
+    const subscribers = /** @type {ReactiveNodes} */ (new Set());
+
+    for (const signal of Scheduler.queue) {
+      for (const subscriber of signal.subscribers) {
+        Scheduler.queue.add(subscriber);
+        subscribers.add(subscriber);
+      }
     }
 
-    for (const scope of this.innerScopes) {
-      const substr = scope.debug().trim();
-      str += "  " + substr.split("\n").join("\n  ") + "\n";
+    const orderedSubscribers = Array.from(subscribers) //
+      .sort((a, b) => a.depth - b.depth);
+
+    for (const subscriber of orderedSubscribers) {
+      if (subscriber instanceof Effect && subscriber.dependencies.size > 0) {
+        subscriber.update();
+      }
     }
 
-    return str;
+    Scheduler.queue.clear();
+    Scheduler.updating = false;
   }
 }
 
@@ -256,52 +310,14 @@ export function resolve($dynamic) {
   return typeof $dynamic === "function" ? $dynamic() : $dynamic.value;
 }
 
-let QUEUING = false;
-
-/** @type {Set<Signal<any>>} */
-let QUEUE = new Set();
+/** @typedef {Set<Signal<any>>} ReactiveNodes */
 
 /**
- * @param {Signal<any>} signal
+ * @template T
+ * @typedef {Signal<T> | (() => T)} Dynamic
  */
-export function queueUpdate(signal) {
-  QUEUE.add(signal);
-
-  // if we're already queuing in the current main task, stop here
-  if (QUEUING) return;
-
-  // run the effects after the current main task is finished
-  // so we can queue all the signals that were changed together
-  QUEUING = true;
-  queueMicrotask(runEffects);
-}
 
 /**
- * @param {Signal<any>} signal
+ * @template T
+ * @typedef {(value: T | undefined) => T | undefined} Task
  */
-export function addDependency(signal) {
-  if (EFFECT && signal !== EFFECT) {
-    signal.subscribe(EFFECT);
-  }
-}
-
-/**
- * @param {Signal<any> | Effect<any>} signal
- */
-export function addMember(signal) {
-  signal.outerScope = SCOPE;
-  SCOPE?.members.add(signal);
-}
-
-function runEffects() {
-  for (const signal of QUEUE) {
-    for (const effect of signal.subscribers) {
-      effect.update();
-      QUEUE.delete(effect);
-      QUEUE.add(effect);
-    }
-  }
-
-  QUEUE.clear();
-  QUEUING = false;
-}
