@@ -3,8 +3,9 @@
 // import * as async from "./domito/async";
 // console.log({ reactive, dom, async });
 
-import $, { Signal } from "./domito/reactive.js";
+import $, { $scope, Signal } from "./domito/reactive.js";
 import $async, { Async } from "./domito/async.js";
+import debug from "./domito/debug.js";
 import {
   render,
   element,
@@ -34,16 +35,36 @@ function Main() {
   const $modulo6 = $(() => $items.value.length % 6);
   const $hasReachedTen = () => $items.value.length >= 10;
 
-  const $timed = $async(() => sleep($items.value.length * 500));
+  const $waitFor = $(0);
+  const $timed = $async(() => sleep($waitFor.value));
+
+  const $mutable = $((/** @type {number[] | undefined} */ mutable) => {
+    // initialize object on first run
+    if (!mutable) return [$items.value.length];
+    // mutate initial object on next runs
+    else mutable.push($items.value.length);
+  });
+
+  $(() => {
+    console.log("mutable length =", $mutable.value.length);
+  });
+
+  setTimeout(() => {
+    $mutable.mutate((mutable) => mutable.push(2000));
+  }, 2000);
 
   $(() => {
     if ($timed.loading) {
-      console.log("Loading...");
+      console.log("Loading...", $waitFor.value);
     } else if ($timed.error) {
       console.log("Error:", $timed.error.message);
     } else if ($timed.data) {
       console.log("Success:", $timed.data);
     }
+  });
+
+  $(() => {
+    $waitFor.value = $items.value.length * 100;
   });
 
   return element("main", (main) => {
@@ -66,6 +87,7 @@ function Main() {
       element("button", (button) => {
         button.textContent = "Start async";
         button.onclick = () => $timed.run();
+        $(() => (button.disabled = $timed.loading));
       }),
 
       $when($hasReachedTen, () =>
@@ -99,7 +121,7 @@ function Main() {
  * @param {{
  *  $items: Signal<number[]>;
  *  $modulo6: Signal<number>;
- *  $timed: Async<Date, []>;
+ *  $timed: Async<() => Promise<Date>>;
  * }} props
  */
 function Items({ $items, $modulo6, $timed }) {
@@ -152,4 +174,10 @@ function Items({ $items, $modulo6, $timed }) {
   });
 }
 
-render(Main, /** @type {HTMLElement} */ (document.getElementById("root")));
+const scope = $scope(() => {
+  const root = /** @type {HTMLElement} */ (document.getElementById("root"));
+  render(root, Main);
+});
+
+// @ts-ignore
+window.debug = () => debug(scope);
