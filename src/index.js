@@ -35,6 +35,19 @@ function Main() {
   const $modulo6 = $(() => $items.value.length % 6);
   const $hasReachedTen = () => $items.value.length >= 10;
 
+  // test cycle detection
+  const $sourceA = $(0);
+  const $sourceB = $("1");
+
+  try {
+    $(() => ($sourceB.value = $sourceB.peek() + $sourceA.value));
+    $(() => ($sourceA.value = $sourceB.value.length));
+  } catch (error) {
+    console.error(error);
+    $sourceA.dispose();
+    $sourceB.dispose();
+  }
+
   const $waitFor = $(0);
   const $timed = $async(() => sleep($waitFor.value));
 

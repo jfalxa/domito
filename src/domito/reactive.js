@@ -65,10 +65,9 @@ class Signal {
 
   /** @type {number} */ id;
   /** @type {Scope | undefined} */ scope;
-
+  /** @type {T} */ _value;
   /** @type {ReactiveNodes} */ dependencies;
   /** @type {ReactiveNodes} */ subscribers;
-  /** @type {T} */ _value;
 
   /**
    * @param {T} initialValue
@@ -81,17 +80,11 @@ class Signal {
     Scope.addMember(this);
   }
 
-  /**
-   * @returns {T}
-   */
   get value() {
     Effect.addDependency(this);
     return this._value;
   }
 
-  /**
-   * @param {T} newValue
-   */
   set value(newValue) {
     Effect.addSubscriber(this);
     if (newValue !== this._value) {
@@ -101,11 +94,13 @@ class Signal {
   }
 
   get depth() {
-    let depth = this.scope?.depth ?? -1;
-    for (const dependency of this.dependencies) {
-      depth = Math.max(depth, dependency.depth);
-    }
+    let depth = -1;
+    for (const dependency of this.dependencies) depth = Math.max(depth, dependency.depth);
     return depth + 1;
+  }
+
+  peek() {
+    return this._value;
   }
 
   /**
@@ -118,11 +113,8 @@ class Signal {
 
   dispose() {
     for (const dependency of this.dependencies) dependency.subscribers.delete(this);
+    for (const subscriber of this.subscribers) subscriber.dispose();
     this.dependencies.clear();
-
-    for (const subscriber of this.subscribers) subscriber.dependencies.delete(this);
-    this.subscribers.clear();
-
     this.scope?.members.delete(this);
     this.scope = undefined;
   }
@@ -143,32 +135,38 @@ class Effect extends Signal {
    */
   constructor(task) {
     super(/** @type {T} */ (undefined));
+    this.dependencies = new Set();
     this.task = task;
     this.update(this);
   }
 
   /**
-   * @param {Signal<any>} dependency
+   * @param {Signal<any> | Effect<any>} dependency
    */
   static addDependency(dependency) {
-    if (Effect.context && dependency !== Effect.context) {
-      Effect.context.dependencies.add(dependency);
-      dependency.subscribers.add(Effect.context);
-    }
+    if (!Effect.context) return;
+    if (dependency === Effect.context) return;
+
+    Effect.context.dependencies.add(dependency);
+    dependency.subscribers.add(Effect.context);
+
+    if (hasCycle(Effect.context)) throw new Error("Cycle detected");
   }
 
   /**
-   * @param {Signal<any>} subscriber
+   * @param {Signal<any> | Effect<any>} subscriber
    */
   static addSubscriber(subscriber) {
-    if (Effect.context && subscriber !== Effect.context) {
-      Effect.context.subscribers.add(subscriber);
-    }
+    if (!Effect.context) return;
+    if (subscriber === Effect.context) return;
+    if (Effect.context.dependencies.has(subscriber)) return;
+
+    Effect.context.subscribers.add(subscriber);
+    subscriber.dependencies.add(Effect.context);
+
+    if (hasCycle(Effect.context)) throw new Error("Cycle detected");
   }
 
-  /**
-   * @returns {T}
-   */
   get value() {
     Effect.addDependency(this);
     return this._value;
@@ -243,8 +241,8 @@ class Scope {
   }
 
   dispose() {
-    for (const scope of Array.from(this.innerScopes)) scope.dispose();
-    for (const member of Array.from(this.members)) member.dispose();
+    for (const scope of this.innerScopes) scope.dispose();
+    for (const member of this.members) member.dispose();
     this.outerScope?.innerScopes.delete(this);
     this.outerScope = undefined;
   }
@@ -294,6 +292,31 @@ class Scheduler {
 }
 
 /**
+ *
+ * @param {Signal<any>} signal
+ * @param {ReactiveNodes} [visited]
+ * @param {ReactiveNodes} [visiting]
+ * @returns {boolean}
+ */
+function hasCycle(signal, visited = new Set(), visiting = new Set()) {
+  if (visiting.has(signal)) return true;
+  if (visited.has(signal)) return false;
+
+  visiting.add(signal);
+
+  for (const subscriber of signal.subscribers) {
+    if (hasCycle(subscriber, visited, visiting)) {
+      return true;
+    }
+  }
+
+  visiting.delete(signal);
+  visited.add(signal);
+
+  return false;
+}
+
+/**
  * @param {any} value
  * @returns {value is Dynamic<any>}
  */
@@ -310,7 +333,7 @@ export function resolve($dynamic) {
   return typeof $dynamic === "function" ? $dynamic() : $dynamic.value;
 }
 
-/** @typedef {Set<Signal<any>>} ReactiveNodes */
+/** @typedef {Set<Signal<any> | Effect<any>>} ReactiveNodes */
 
 /**
  * @template T
