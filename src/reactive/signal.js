@@ -77,21 +77,22 @@ class Signal {
     subscriber.move(this.depth + 1);
   }
 
-  /**
-   * @param {number} depth
-   */
-  move(depth) {
-    if (depth <= this.depth) return;
-    this.depth = depth;
-    for (const subscriber of this.subscribers) subscriber.move(this.depth + 1);
-  }
-
   dispose() {
     for (const dependency of this.dependencies) dependency.subscribers.delete(this);
     for (const subscriber of this.subscribers) subscriber.dispose();
     this.dependencies.clear();
     this.scope?.members.delete(this);
     this.scope = undefined;
+  }
+
+  /**
+   * @private
+   * @param {number} depth
+   */
+  move(depth) {
+    if (depth <= this.depth) return;
+    this.depth = depth;
+    for (const subscriber of this.subscribers) subscriber.move(this.depth + 1);
   }
 }
 

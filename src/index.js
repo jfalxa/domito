@@ -1,7 +1,6 @@
-// import * as reactive from "./domito/reactive";
-// import * as dom from "./domito/dom";
-// import * as async from "./domito/async";
-// console.log({ reactive, dom, async });
+// import * as reactive from "./reactive";
+// import * as dom from "./dom";
+// console.log({ reactive, dom });
 
 import { $, $scope, $async, Signal, Async } from "./reactive/index.js";
 import { element, render, onConnected, onDisconnected } from "./dom/index.js";
@@ -34,9 +33,23 @@ function Main() {
   const $sourceA = $(0);
   const $sourceB = $("1");
 
+  // @ts-ignore
+  window.sourceA = $sourceA;
+
   try {
-    const a = $(() => ($sourceB.value += $sourceA.value));
-    const b = $(() => ($sourceA.value = $sourceB.value.length));
+    $(() => ($sourceB.value = String($sourceA.value)));
+    const $bLength = $(() => $sourceB.value.length);
+    $(() => {
+      if ($bLength.value > 2) {
+        console.log("BLABLABLA");
+        $sourceA.value = $bLength.value * 1000;
+      }
+    });
+    $(() => {
+      console.log("$sourceA", $sourceA.value);
+      console.log("$sourceB", $sourceB.value);
+      console.log("$bLength", $bLength.value);
+    });
   } catch (error) {
     console.error(error);
     $sourceA.dispose();

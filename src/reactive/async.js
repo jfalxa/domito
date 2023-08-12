@@ -10,7 +10,7 @@ export { $async, Async };
  * @template T
  * @template {Tuple} [A=[]]
  * @param {AsyncTask<T, A>} task
- * @param {{ arguments?: A | (() => A), initialData?: T }} [init]
+ * @param {{ arguments?: Reactive<A>, initialData?: T }} [init]
  * @returns {Async<T, A>}
  */
 function $async(task, init) {
@@ -23,14 +23,14 @@ function $async(task, init) {
  * @extends {Effect<AsyncSnapshot<T>>}
  */
 class Async extends Effect {
-  /** @type {AsyncTask<T, A>} */ asyncTask;
-  /** @type {A | Reactive<A> | undefined} */ arguments;
+  /** @private @type {AsyncTask<T, A>} */ asyncTask;
+  /** @private @type {Reactive<A> | undefined} */ arguments;
 
-  /** @type {(() => void) | undefined} */ onLoad;
-  /** @type {((data: T) => void) | undefined} */ onSuccess;
-  /** @type {((error: Error) => void) | undefined} */ onError;
+  /** @private @type {(() => void) | undefined} */ onLoad;
+  /** @private @type {((data: T) => void) | undefined} */ onSuccess;
+  /** @private @type {((error: Error) => void) | undefined} */ onError;
 
-  /** @type {number} */ iteration;
+  /** @private @type {number} */ iteration;
 
   /**
    * @param  {AsyncTask<T, A>} asyncTask
@@ -129,7 +129,7 @@ class Async extends Effect {
  * @template T
  * @template {Tuple} [A=[]]
  * @typedef {{
- *  arguments?: A | Reactive<A>;
+ *  arguments?: Reactive<A>;
  *  initialData?: T;
  *  onLoad?: () => void;
  *  onSuccess?: (data: T) => void;

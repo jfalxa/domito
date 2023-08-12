@@ -39,8 +39,7 @@ class Supervisor {
     }
 
     // sort subscribers by depth so they only get their depdendencies' latest values for this update cycle
-    const orderedSubscribers = Array.from(subscribers) //
-      .sort((a, b) => a.depth - b.depth);
+    const orderedSubscribers = Array.from(subscribers).sort((a, b) => a.depth - b.depth);
 
     for (const subscriber of orderedSubscribers) {
       if (subscriber instanceof Effect && subscriber.dependencies.size > 0) {
