@@ -72,6 +72,8 @@ class Signal {
   subscribe(subscriber) {
     this.subscribers.add(subscriber);
     subscriber.dependencies.add(this);
+
+    if (hasCycle(this)) throw new Error("Cycle detected");
     subscriber.move(this.depth + 1);
   }
 
@@ -91,4 +93,28 @@ class Signal {
     this.scope?.members.delete(this);
     this.scope = undefined;
   }
+}
+
+/**
+ * @param {Signal<any>} signal
+ * @param {ReactiveNodes} [visited]
+ * @param {ReactiveNodes} [visiting]
+ * @returns {boolean}
+ */
+function hasCycle(signal, visited = new Set(), visiting = new Set()) {
+  if (visiting.has(signal)) return true;
+  if (visited.has(signal)) return false;
+
+  visiting.add(signal);
+
+  for (const subscriber of signal.subscribers) {
+    if (hasCycle(subscriber, visited, visiting)) {
+      return true;
+    }
+  }
+
+  visiting.delete(signal);
+  visited.add(signal);
+
+  return false;
 }

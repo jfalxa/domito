@@ -35,8 +35,8 @@ function Main() {
   const $sourceB = $("1");
 
   try {
-    $(() => ($sourceB.value += $sourceA.value));
-    $(() => ($sourceA.value = $sourceB.value.length));
+    const a = $(() => ($sourceB.value += $sourceA.value));
+    const b = $(() => ($sourceA.value = $sourceB.value.length));
   } catch (error) {
     console.error(error);
     $sourceA.dispose();
@@ -54,16 +54,6 @@ function Main() {
   const $timed = $async((waitFor, counter) => sleep(waitFor * counter), {
     arguments: () => [$waitFor.value, $counter.value],
   });
-
-  const $a = $("a");
-  const $b = $("b");
-  const $c = $("c");
-
-  $(() => {
-    $c.value = $c.value + $a.value + $b.value;
-  });
-
-  const $d = $(() => $c.value + $a.value);
 
   const $mutable = $((/** @type {number[] | undefined} */ mutable) => {
     // initialize object on first run

@@ -66,53 +66,17 @@ class Supervisor {
    * @param {Signal<any>} dependency
    */
   static registerDependency(dependency) {
-    if (!Supervisor.context) return;
-    if (dependency === Supervisor.context) return;
-
-    dependency.subscribe(Supervisor.context);
-    Supervisor.detectCycle();
+    if (Supervisor.context && dependency !== Supervisor.context) {
+      dependency.subscribe(Supervisor.context);
+    }
   }
 
   /**
    * @param {Signal<any>} subscriber
    */
   static registerSubscriber(subscriber) {
-    if (!Supervisor.context) return;
-    if (subscriber === Supervisor.context) return;
-    if (Supervisor.context.dependencies.has(subscriber)) return;
-
-    Supervisor.context.subscribe(subscriber);
-    Supervisor.detectCycle();
-  }
-
-  static detectCycle() {
-    if (Supervisor.context && hasCycle(Supervisor.context)) {
-      throw new Error("Cycle detected");
+    if (Supervisor.context && subscriber !== Supervisor.context) {
+      Supervisor.context.subscribe(subscriber);
     }
   }
-}
-
-/**
- * @param {Signal<any>} signal
- * @param {ReactiveNodes} [visited]
- * @param {ReactiveNodes} [visiting]
- * @returns {boolean}
- */
-function hasCycle(signal, visited = new Set(), visiting = new Set()) {
-  if (!signal) return false;
-  if (visiting.has(signal)) return true;
-  if (visited.has(signal)) return false;
-
-  visiting.add(signal);
-
-  for (const subscriber of signal.subscribers) {
-    if (hasCycle(subscriber, visited, visiting)) {
-      return true;
-    }
-  }
-
-  visiting.delete(signal);
-  visited.add(signal);
-
-  return false;
 }
