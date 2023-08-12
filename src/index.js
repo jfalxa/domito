@@ -33,23 +33,10 @@ function Main() {
   const $sourceA = $(0);
   const $sourceB = $("1");
 
-  // @ts-ignore
-  window.sourceA = $sourceA;
-
   try {
     $(() => ($sourceB.value = String($sourceA.value)));
     const $bLength = $(() => $sourceB.value.length);
-    $(() => {
-      if ($bLength.value > 2) {
-        console.log("BLABLABLA");
-        $sourceA.value = $bLength.value * 1000;
-      }
-    });
-    $(() => {
-      console.log("$sourceA", $sourceA.value);
-      console.log("$sourceB", $sourceB.value);
-      console.log("$bLength", $bLength.value);
-    });
+    $(() => ($sourceA.value = $bLength.value * 1000));
   } catch (error) {
     console.error(error);
     $sourceA.dispose();
