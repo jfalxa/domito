@@ -66,7 +66,7 @@ class Async extends Effect {
       return this._value;
     };
 
-    this.update(this);
+    this.update();
   }
 
   get loading() {

@@ -25,7 +25,7 @@ class Effect extends Signal {
   constructor(task) {
     super(/** @type {T} */ (undefined));
     this.task = task;
-    this.update(this);
+    this.update();
   }
 
   get value() {
@@ -36,23 +36,19 @@ class Effect extends Signal {
     throw new Error("Effect values are read-only");
   }
 
-  /**
-   * @param {this | undefined} context
-   * @returns {void}
-   */
-  update(context = undefined) {
+  update() {
     if (!this.task) return;
 
     const outerContext = Supervisor.context;
     const outerScope = Supervisor.scope;
 
-    Supervisor.context = context;
+    Supervisor.context = this;
     Supervisor.scope = this.scope;
 
     const result = this.task?.(this._value);
     if (result !== undefined) this._value = result;
 
-    Supervisor.context = context ? outerContext : undefined;
+    Supervisor.context = outerContext;
     Supervisor.scope = outerScope;
   }
 }
