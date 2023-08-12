@@ -1,13 +1,13 @@
-/** @template T @typedef {import("./reactive").Dynamic<T>} Dynamic */
-import { $text } from "./dom";
-import { isDynamic } from "./reactive";
+/** @template T @typedef {import("../reactive/reactive.js").Reactive<T>} Reactive */
 
-export default html;
+import { $text } from "./text.js";
+import { isReactive } from "../reactive/reactive.js";
+
 export { html };
 
 /**
  * @param {TemplateStringsArray} strings
- * @param  {...(string | number | boolean | null | undefined | Node | Dynamic<any>)} interpolated
+ * @param  {...(string | number | boolean | null | undefined | Node | Reactive<any>)} interpolated
  * @returns {DocumentFragment}
  */
 function html(strings, ...interpolated) {
@@ -21,7 +21,7 @@ function html(strings, ...interpolated) {
     if (interpolatedVal !== undefined && interpolatedVal !== null) {
       if (interpolatedVal instanceof Node) {
         interpolatedPart = `<div data-temporary-placeholder-for="${i}"></div>`;
-      } else if (isDynamic(interpolatedVal)) {
+      } else if (isReactive(interpolatedVal)) {
         interpolated[i] = $text(interpolatedVal);
         interpolatedPart = `<div data-temporary-placeholder-for="${i}"></div>`;
       } else {

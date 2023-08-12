@@ -1,10 +1,11 @@
-import { Effect, Scope, Signal } from "./reactive";
+import { Effect } from "./effect.js";
+import { Scope } from "./scope.js";
+import { Signal } from "./signal.js";
 
-export default debug;
 export { debug, scopeToString, signalToString };
 
 /**
- * @param {Signal<any> | Effect<any> | Scope} source
+ * @param {Signal<any> | Scope} source
  * @returns {void}
  */
 function debug(source) {
@@ -29,7 +30,7 @@ function debug(source) {
  * @returns {string}
  */
 function signalToString(signal) {
-  const value = JSON.stringify(signal._value);
+  const value = JSON.stringify(signal.peek());
   const isEffect = signal instanceof Effect;
 
   let str = `- %c${isEffect ? "Effect" : "Signal"} #${signal.id}%c (${signal.depth}) = ${value}\n`;

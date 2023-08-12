@@ -3,19 +3,14 @@
 // import * as async from "./domito/async";
 // console.log({ reactive, dom, async });
 
-import $, { $scope, Signal } from "./domito/reactive.js";
-import $async, { Async } from "./domito/async.js";
-import debug from "./domito/debug.js";
-import {
-  render,
-  element,
-  $text,
-  $when,
-  $index,
-  $map,
-  onConnected,
-  onDisconnected,
-} from "./domito/dom.js";
+import { $, $scope, $async, Signal, Async } from "./reactive/index.js";
+import { element, render, onConnected, onDisconnected } from "./dom/index.js";
+import { $text, $when, $list, $map } from "./dom/index.js";
+import { Supervisor } from "./reactive/supervisor.js";
+import { debug } from "./reactive/debug.js";
+
+// @ts-ignore
+window.Supervisor = Supervisor;
 
 /**
  * @param {number} duration
@@ -40,7 +35,7 @@ function Main() {
   const $sourceB = $("1");
 
   try {
-    $(() => ($sourceB.value = $sourceB.peek() + $sourceA.value));
+    $(() => ($sourceB.value += $sourceA.value));
     $(() => ($sourceA.value = $sourceB.value.length));
   } catch (error) {
     console.error(error);
@@ -48,8 +43,27 @@ function Main() {
     $sourceB.dispose();
   }
 
+  const $counter = $(1);
+
   const $waitFor = $(0);
-  const $timed = $async(() => sleep($waitFor.value));
+
+  $(() => {
+    $waitFor.value = $items.value.length * 100;
+  });
+
+  const $timed = $async((waitFor, counter) => sleep(waitFor * counter), {
+    arguments: () => [$waitFor.value, $counter.value],
+  });
+
+  const $a = $("a");
+  const $b = $("b");
+  const $c = $("c");
+
+  $(() => {
+    $c.value = $c.value + $a.value + $b.value;
+  });
+
+  const $d = $(() => $c.value + $a.value);
 
   const $mutable = $((/** @type {number[] | undefined} */ mutable) => {
     // initialize object on first run
@@ -68,7 +82,7 @@ function Main() {
 
   $(() => {
     if ($timed.loading) {
-      console.log("Loading...", $waitFor.value);
+      console.log("Loading...", $items.value.length);
     } else if ($timed.error) {
       console.log("Error:", $timed.error.message);
     } else if ($timed.data) {
@@ -76,15 +90,13 @@ function Main() {
     }
   });
 
-  $(() => {
-    $waitFor.value = $items.value.length * 100;
-  });
-
   return element("main", (main) => {
     main.append(
       element("button", (button) => {
         button.textContent = "Add a number";
-        button.onclick = () => ($items.value = [...$items.value, $items.value.length + 1]);
+        button.onclick = () => {
+          $items.value = [...$items.value, $items.value.length + 1];
+        };
       }),
 
       element("button", (button) => {
@@ -99,7 +111,7 @@ function Main() {
 
       element("button", (button) => {
         button.textContent = "Start async";
-        button.onclick = () => $timed.run();
+        button.onclick = () => $timed.run(200, 2.5);
         $(() => (button.disabled = $timed.loading));
       }),
 
@@ -109,7 +121,7 @@ function Main() {
           const onScroll = () => console.log("scroll!");
 
           onConnected(() => {
-            document.body.style.height = "300vh";
+            document.body.style.height = "10000vh";
             window.onscroll = onScroll;
             window.onresize = onResize;
           });
@@ -134,7 +146,7 @@ function Main() {
  * @param {{
  *  $items: Signal<number[]>;
  *  $modulo6: Signal<number>;
- *  $timed: Async<() => Promise<Date>>;
+ *  $timed: Async<Date, [number, number]>;
  * }} props
  */
 function Items({ $items, $modulo6, $timed }) {
@@ -173,7 +185,7 @@ function Items({ $items, $modulo6, $timed }) {
 
             element("ul", (ul) => {
               ul.append(
-                $index($items, ($item) =>
+                $list($items, ($item) =>
                   element("li", (li) => {
                     li.append($text(() => `List subitem #${$item.value * 2}`));
                   })
