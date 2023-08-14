@@ -13,12 +13,12 @@ function $text(content) {
   const text = new Text();
 
   new Effect(() => {
-    const resolved = resolve(content);
+    const value = resolve(content);
 
-    if (resolved === null || resolved === undefined) {
+    if (value === null || value === undefined) {
       text.textContent = "";
     } else {
-      text.textContent = String(resolved);
+      text.textContent = String(value);
     }
   });
 
