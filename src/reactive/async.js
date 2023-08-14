@@ -49,6 +49,10 @@ class Async extends Effect {
     this.$loading = new Signal("arguments" in init);
     this.$error = new Signal(null);
 
+    // because this effect is async we can't detect $loading usage automatically
+    // so we add $loading as a subscriber manually
+    this.subscribe(this.$loading);
+
     this.asyncTask = asyncTask;
     this.arguments = init.arguments;
     this.tags = init.tags ?? [];
