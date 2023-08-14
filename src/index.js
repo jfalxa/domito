@@ -1,6 +1,7 @@
+// import * as client from "./client";
 // import * as reactive from "./reactive";
 // import * as dom from "./dom";
-// console.log({ reactive, dom });
+// console.log({ reactive, dom, client });
 
 import { $, $scope, $async, Signal, Async } from "./reactive/index.js";
 import { element, render, onConnected, onDisconnected } from "./dom/index.js";
@@ -52,6 +53,7 @@ function Main() {
   });
 
   const $timed = $async((waitFor, counter) => sleep(waitFor * counter), {
+    tags: ["timed"],
     arguments: () => [$waitFor.value, $counter.value],
   });
 
@@ -67,7 +69,9 @@ function Main() {
   });
 
   setTimeout(() => {
-    $mutable.mutate((mutable) => mutable.push(2000));
+    $mutable.mutate((mutable) => {
+      mutable.push(2000);
+    });
   }, 2000);
 
   $(() => {
@@ -75,8 +79,8 @@ function Main() {
       console.log("Loading...", $items.value.length);
     } else if ($timed.error) {
       console.log("Error:", $timed.error.message);
-    } else if ($timed.data) {
-      console.log("Success:", $timed.data);
+    } else if ($timed.value) {
+      console.log("Success:", $timed.value);
     }
   });
 
@@ -166,10 +170,10 @@ function Items({ $items, $modulo6, $timed }) {
               })
             ),
 
-            $when($timed.hasData, () =>
+            $when($timed.hasValue, () =>
               element("h1", (h1) => {
                 h1.style.color = "green";
-                h1.append($text(() => $timed.data?.toLocaleString()));
+                h1.append($text(() => $timed.value?.toLocaleString()));
               })
             ),
 
