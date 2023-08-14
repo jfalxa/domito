@@ -2,15 +2,16 @@
 
 import { Effect } from "./effect.js";
 import { resolve } from "./reactive.js";
+import { Signal } from "./signal.js";
 import { Supervisor } from "./supervisor.js";
 
-export { $async, Async };
+export { $async, Async, invalidate };
 
 /**
  * @template T
  * @template {Tuple} [A=[]]
  * @param {AsyncTask<T, A>} task
- * @param {{ arguments?: Reactive<A>, initialData?: T }} [init]
+ * @param {AsyncInit<T, A>} [init]
  * @returns {Async<T, A>}
  */
 function $async(task, init) {
@@ -20,11 +21,14 @@ function $async(task, init) {
 /**
  * @template T
  * @template {Tuple} [A=[]]
- * @extends {Effect<AsyncSnapshot<T>>}
+ * @extends {Effect<T | null>}
  */
 class Async extends Effect {
   /** @private @type {AsyncTask<T, A>} */ asyncTask;
   /** @private @type {Reactive<A> | undefined} */ arguments;
+
+  /** @private @type {string[]} */ tags;
+  /** @private @type {string[]} */ invalidates;
 
   /** @private @type {(() => void) | undefined} */ onLoad;
   /** @private @type {((data: T) => void) | undefined} */ onSuccess;
@@ -32,19 +36,23 @@ class Async extends Effect {
 
   /** @private @type {number} */ iteration;
 
+  /** @private @type {Signal<boolean>} */ $loading;
+  /** @private @type {Signal<Error | null>} */ $error;
+
   /**
    * @param  {AsyncTask<T, A>} asyncTask
    * @param {AsyncInit<T, A>} [init]
    */
   constructor(asyncTask, init = {}) {
-    super(() => ({
-      loading: "arguments" in init ?? true,
-      error: undefined,
-      data: init.initialData,
-    }));
+    super(() => init.initialData ?? null);
+
+    this.$loading = new Signal("arguments" in init);
+    this.$error = new Signal(null);
 
     this.asyncTask = asyncTask;
     this.arguments = init.arguments;
+    this.tags = init.tags ?? [];
+    this.invalidates = init.invalidates ?? [];
     this.onLoad = init.onLoad;
     this.onError = init.onError;
     this.onSuccess = init.onSuccess;
@@ -66,62 +74,95 @@ class Async extends Effect {
       return this._value;
     };
 
+    // bind update to this so we can use it as an event listener
+    this.update = this.update.bind(this);
+
+    // setup invalidation listeners
+    for (const key of this.tags) {
+      window.addEventListener(`invalidate:${key}`, this.update);
+    }
+
     this.update();
   }
 
   get loading() {
-    return this.value.loading;
+    return this.$loading.value;
   }
 
   get error() {
-    return this.value.error;
-  }
-
-  get data() {
-    return this.value.data;
+    return this.$error.value;
   }
 
   isLoading = () => {
-    return this.value.loading;
+    return this.$loading.value;
   };
 
   hasError = () => {
-    return this.value.error !== undefined;
+    return this.$error.value !== undefined;
   };
 
-  hasData = () => {
-    return this.value.data !== undefined;
+  hasValue = () => {
+    return this.value !== undefined;
   };
 
   /**
    * @param {A} args
-   * @returns {Promise<T | undefined>}
+   * @returns {Promise<T | null>}
    */
   async run(...args) {
+    // get the current iteration of the async operation
+    // so we can determine priority when there are race conditions
     const iteration = ++this.iteration;
 
     try {
-      if (!this._value.loading) {
-        this._value = { ...this._value, loading: true };
+      if (!this.$loading.peek()) {
+        this.$loading.mutate(() => true);
         this.onLoad?.();
-        Supervisor.requestUpdate(this);
       }
 
       const data = await this.asyncTask?.(...args);
 
-      if (iteration < this.iteration) return this._value.data;
+      // prevent updating the value if the async operation is stale
+      if (iteration < this.iteration) return this._value;
 
-      this._value = { loading: false, error: undefined, data };
+      this._value = data;
+      this.$loading.mutate(() => false);
+      this.$error.mutate(() => null);
+
+      invalidate(...this.invalidates);
+
       this.onSuccess?.(data);
     } catch (error) {
-      if (iteration < this.iteration) return this._value.data;
+      // prevent updating the error if the async operation is stale
+      if (iteration < this.iteration) return this._value;
 
-      this._value = { loading: false, error: /** @type {Error} */ (error), data: undefined };
+      this._value = null;
+      this.$loading.mutate(() => false);
+      this.$error.mutate(() => /** @type {Error} */ (error));
+
       this.onError?.(/** @type {Error} */ (error));
     }
 
+    // if the async operation completed, request an update
     Supervisor.requestUpdate(this);
-    return this._value.data;
+    return this._value;
+  }
+
+  dispose() {
+    super.dispose();
+
+    for (const key of this.tags) {
+      window.removeEventListener(`invalidate:${key}`, this.update);
+    }
+  }
+}
+
+/**
+ * @param  {string[]} keys
+ */
+function invalidate(...keys) {
+  for (const key of keys) {
+    window.dispatchEvent(new Event(`invalidate:${key}`));
   }
 }
 
@@ -131,6 +172,8 @@ class Async extends Effect {
  * @typedef {{
  *  arguments?: Reactive<A>;
  *  initialData?: T;
+ *  tags?: string[];
+ *  invalidates?: string[];
  *  onLoad?: () => void;
  *  onSuccess?: (data: T) => void;
  *  onError?: (error: Error) => void;
