@@ -28,9 +28,18 @@ class Supervisor {
     queueMicrotask(Supervisor.update);
   }
 
+  /**
+   * @param {Signal<any>} signal
+   * @returns {signal is Effect<any>}
+   */
+  static shouldUpdate(signal) {
+    return signal instanceof Effect && signal.dependencies.size > 0;
+  }
+
   static update() {
     const subscribers = /** @type {ReactiveNodes} */ (new Set());
 
+    // flatten the dependency graph for the updated signals
     for (const signal of Supervisor.queue) {
       for (const subscriber of signal.subscribers) {
         Supervisor.queue.add(subscriber);
@@ -42,7 +51,7 @@ class Supervisor {
     const orderedSubscribers = Array.from(subscribers).sort((a, b) => a.depth - b.depth);
 
     for (const subscriber of orderedSubscribers) {
-      if (subscriber instanceof Effect && subscriber.dependencies.size > 0) {
+      if (Supervisor.shouldUpdate(subscriber)) {
         subscriber.update();
       }
     }
@@ -77,5 +86,30 @@ class Supervisor {
     if (Supervisor.context && subscriber !== Supervisor.context) {
       Supervisor.context.subscribe(subscriber);
     }
+  }
+
+  /**
+   * @param {Effect<any>} context
+   * @param {() => void} task
+   */
+  static run(context, task) {
+    let error;
+
+    const outerContext = Supervisor.context;
+    const outerScope = Supervisor.scope;
+
+    Supervisor.context = context;
+    Supervisor.scope = context.scope;
+
+    try {
+      task();
+    } catch (taskError) {
+      error = taskError;
+    }
+
+    Supervisor.context = outerContext;
+    Supervisor.scope = outerScope;
+
+    if (error) throw error;
   }
 }

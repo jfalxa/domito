@@ -59,10 +59,11 @@ class Signal {
   }
 
   /**
-   * @param {(value: T) => void} mutation
+   * @param {(value: T) => T | void} mutation
    */
   mutate(mutation) {
-    mutation(this._value);
+    const result = mutation(this._value);
+    if (result !== undefined) this._value = result;
     Supervisor.requestUpdate(this);
   }
 

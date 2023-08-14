@@ -39,17 +39,10 @@ class Effect extends Signal {
   update() {
     if (!this.task) return;
 
-    const outerContext = Supervisor.context;
-    const outerScope = Supervisor.scope;
-
-    Supervisor.context = this;
-    Supervisor.scope = this.scope;
-
-    const result = this.task?.(this._value);
-    if (result !== undefined) this._value = result;
-
-    Supervisor.context = outerContext;
-    Supervisor.scope = outerScope;
+    Supervisor.run(this, () => {
+      const result = this.task?.(this._value);
+      if (result !== undefined) this._value = result;
+    });
   }
 }
 
