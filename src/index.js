@@ -49,12 +49,38 @@ function Main() {
   const $waitFor = $(0);
 
   $(() => {
-    $waitFor.value = $items.value.length * 100;
+    $waitFor.value = $items.value.length * 400;
   });
 
   const $timed = $async((waitFor, counter) => sleep(waitFor * counter), {
     tags: ["timed"],
     arguments: () => [$waitFor.value, $counter.value],
+  });
+
+  $(() => {
+    if ($timed.loading) {
+      console.log("Loading...", $items.value.length);
+    } else if ($timed.error) {
+      console.log("Error:", $timed.error.message);
+    } else if ($timed.value) {
+      console.log("Success:", $timed.value);
+    }
+  });
+
+  const $decimal = $(213.31516);
+  const $integer = $(() => Math.floor($decimal.value));
+
+  let interval = setInterval(() => {
+    $decimal.value += 0.25;
+    if ($decimal.value > 215) clearInterval(interval);
+  }, 250);
+
+  $(() => {
+    console.log("$decimal was changed to:", $decimal.value);
+  });
+
+  $(() => {
+    console.log("$integer was changed to:", $integer.value);
   });
 
   const $mutable = $((/** @type {number[] | undefined} */ mutable) => {
@@ -73,16 +99,6 @@ function Main() {
       mutable.push(2000);
     });
   }, 2000);
-
-  $(() => {
-    if ($timed.loading) {
-      console.log("Loading...", $items.value.length);
-    } else if ($timed.error) {
-      console.log("Error:", $timed.error.message);
-    } else if ($timed.value) {
-      console.log("Success:", $timed.value);
-    }
-  });
 
   return element("main", (main) => {
     main.append(
