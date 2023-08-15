@@ -1,4 +1,4 @@
-export { toFormData, toJSON };
+export { toFormData, toSearchParams, toJSON };
 
 /**
  * @param {Record<string, any>} json
@@ -18,23 +18,40 @@ function toFormData(json) {
 }
 
 /**
- * @param {FormData} formData
+ * @param {Record<string, any>} json
+ * @returns {URLSearchParams}
+ */
+function toSearchParams(json) {
+  const data = new URLSearchParams();
+  for (const key in json) {
+    const value = json[key];
+    if (typeof value[Symbol.iterator] === "function") {
+      for (const item of value) data.append(key, item);
+    } else {
+      data.append(key, value);
+    }
+  }
+  return data;
+}
+
+/**
+ * @param {FormData | URLSearchParams} data
  * @param {Schema} [schema]
  * @returns {Record<string, any>}
  */
-function toJSON(formData, schema = {}) {
+function toJSON(data, schema = {}) {
   const json = /** @type {Record<string, any>} */ ({});
-  for (const key of formData.keys()) {
+  for (const key of data.keys()) {
     if (key in schema) {
       const parse = schema[key];
       if (Array.isArray(parse)) {
-        json[key] = formData.getAll(key).map(parse[0]);
+        json[key] = data.getAll(key).map(parse[0]);
       } else {
-        const value = formData.get(key);
+        const value = data.get(key);
         json[key] = value === null || value === undefined ? value : parse(value);
       }
     } else {
-      json[key] = formData.get(key);
+      json[key] = data.get(key);
     }
   }
   return json;
