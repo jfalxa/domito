@@ -157,7 +157,6 @@ class Async extends Effect {
 
   dispose() {
     super.dispose();
-
     for (const key of this.tags) {
       window.removeEventListener(`invalidate:${key}`, this.update);
     }

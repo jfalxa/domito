@@ -1,7 +1,7 @@
-// import * as client from "./client";
+// import * as http from "./http";
 // import * as reactive from "./reactive";
 // import * as dom from "./dom";
-// console.log({ reactive, dom, client });
+// console.log({ reactive, dom, http });
 
 import { $, $scope, $async, Signal, Async } from "./reactive/index.js";
 import { element, render, onConnected, onDisconnected } from "./dom/index.js";
@@ -75,6 +75,7 @@ function Main() {
   }, 2000);
 
   $(() => {
+    // console.trace("async");
     if ($timed.loading) {
       console.log("Loading...", $items.value.length);
     } else if ($timed.error) {
