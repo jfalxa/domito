@@ -1,3 +1,4 @@
+import { Async } from "./async.js";
 import { Effect } from "./effect.js";
 import { Scope } from "./scope.js";
 import { Signal } from "./signal.js";
@@ -31,9 +32,9 @@ function debug(source) {
  */
 function signalToString(signal) {
   const value = JSON.stringify(signal.peek());
-  const isEffect = signal instanceof Effect;
+  const type = signal instanceof Async ? "Async" : signal instanceof Effect ? "Effect" : "Signal";
 
-  let str = `- %c${isEffect ? "Effect" : "Signal"} #${signal.id}%c (${signal.depth}) = ${value}\n`;
+  let str = `- %c${type} #${signal.id}%c (${signal.depth}) = ${value}\n`;
 
   if (signal.dependencies.size > 0) {
     str += `  * Dependencies: `;
@@ -74,7 +75,7 @@ function scopeToString(scope) {
  */
 function compactSignals(signals) {
   return Array.from(signals)
-    .map((s) => `${s instanceof Effect ? "E" : "S"}${s.id}`)
+    .map((s) => `${s instanceof Async ? "A" : s instanceof Effect ? "E" : "S"}${s.id}`)
     .join(", ");
 }
 

@@ -75,7 +75,6 @@ function Main() {
   }, 2000);
 
   $(() => {
-    // console.trace("async");
     if ($timed.loading) {
       console.log("Loading...", $items.value.length);
     } else if ($timed.error) {

@@ -25,7 +25,12 @@ class Effect extends Signal {
   constructor(task) {
     super(/** @type {T} */ (undefined));
     this.task = task;
+
     this.update();
+
+    // clean up any update requests added by the effect
+    // as we don't need reactivity when the constructor is called
+    Supervisor.queue.clear();
   }
 
   get value() {
