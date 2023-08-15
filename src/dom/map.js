@@ -66,7 +66,7 @@ function $map($items, callback) {
       }
 
       if (scope === undefined) {
-        scope = Scope.bind(() => {
+        scope = new Scope(() => {
           child = callback(item, /** @type {Signal<number>} */ ($index));
           children.set(item, child);
         });

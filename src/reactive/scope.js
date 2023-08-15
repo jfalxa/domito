@@ -9,7 +9,7 @@ export { $scope, Scope };
  * @returns {Scope}
  */
 function $scope(task) {
-  return Scope.bind(task);
+  return new Scope(task);
 }
 
 class Scope {
@@ -22,22 +22,17 @@ class Scope {
   /** @type {Set<Scope>} */ innerScopes;
   /** @type {ReactiveNodes} */ members;
 
-  constructor() {
+  /**
+   * @param {() => any} [initialTask]
+   */
+  constructor(initialTask) {
     this.id = Scope.id++;
     this.outerScope = Supervisor.scope;
     this.outerScope?.innerScopes.add(this);
     this.innerScopes = new Set();
     this.members = new Set();
     this.depth = this.outerScope ? this.outerScope.depth + 1 : 0;
-  }
-
-  /**
-   * @param {() => any} task
-   */
-  static bind(task) {
-    const scope = new Scope();
-    scope.run(task);
-    return scope;
+    if (initialTask) this.run(initialTask);
   }
 
   /**

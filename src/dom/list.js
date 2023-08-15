@@ -32,7 +32,7 @@ function $list($items, callback) {
 
     // add the new items that weren't registered yet
     for (let i = oldLength; i < newLength; i++) {
-      scopes[i] = Scope.bind(() => {
+      scopes[i] = new Scope(() => {
         itemSignals[i] = itemSignals[i] ?? new Effect(() => value[i]);
         children[i] = callback(itemSignals[i], i);
       });

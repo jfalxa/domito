@@ -27,7 +27,7 @@ function $when($condition, callback) {
 
     if (value) {
       if (!scope && !element) {
-        scope = Scope.bind(() => {
+        scope = new Scope(() => {
           element = callback();
           comment.after(element);
           connected(element);
