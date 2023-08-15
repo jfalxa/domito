@@ -38,10 +38,16 @@ class Effect extends Signal {
 
   update() {
     if (!this.task) return;
+    if (this.disposed) return;
 
     Supervisor.run(this, () => {
       const result = this.task?.(this._value);
-      if (result !== undefined) this._value = result;
+
+      const isVoid = result === undefined;
+      const hasChange = result !== this._value;
+
+      if (!isVoid) this._value = result;
+      if (isVoid || hasChange) this.deprecate();
     });
   }
 }

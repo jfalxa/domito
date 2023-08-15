@@ -26,6 +26,9 @@ class Signal {
   /** @type {number} */ depth;
   /** @type {Scope | undefined} */ scope;
 
+  /** @type {boolean} */ willUpdate;
+  /** @type {boolean} */ disposed;
+
   /** @type {ReactiveNodes} */ dependencies;
   /** @type {ReactiveNodes} */ subscribers;
 
@@ -36,6 +39,8 @@ class Signal {
     this.id = Signal.id++;
     this.depth = 0;
     this._value = initialValue;
+    this.willUpdate = false;
+    this.disposed = false;
     this.dependencies = new Set();
     this.subscribers = new Set();
     Supervisor.register(this);
@@ -67,6 +72,14 @@ class Signal {
     Supervisor.requestUpdate(this);
   }
 
+  deprecate() {
+    if (this.disposed) return;
+
+    for (const subscriber of this.subscribers) {
+      if (!subscriber.disposed) subscriber.willUpdate = true;
+    }
+  }
+
   /**
    * @param {Signal<any>} subscriber
    */
@@ -84,6 +97,7 @@ class Signal {
     this.dependencies.clear();
     this.scope?.members.delete(this);
     this.scope = undefined;
+    this.disposed = true;
   }
 
   /**

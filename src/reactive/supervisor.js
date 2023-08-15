@@ -22,24 +22,21 @@ class Supervisor {
     // if an update was already requested in the current main task, stop here
     if (Supervisor.updating) return;
 
-    // run the effects after the current main task is finished
+    // run the effects right after the current main task is finished
     // so we can queue all the signals that were changed together
     Supervisor.updating = true;
     queueMicrotask(Supervisor.update);
   }
 
-  /**
-   * @param {Signal<any>} signal
-   * @returns {signal is Effect<any>}
-   */
-  static shouldUpdate(signal) {
-    return signal instanceof Effect && signal.dependencies.size > 0;
-  }
-
   static update() {
     const subscribers = /** @type {ReactiveNodes} */ (new Set());
 
-    // flatten the dependency graph for the updated signals
+    // deprecate the queued signals to prepare their subscribers for update
+    for (const signal of Supervisor.queue) {
+      signal.deprecate();
+    }
+
+    // queue all the signals and effects connected to the initial ones
     for (const signal of Supervisor.queue) {
       for (const subscriber of signal.subscribers) {
         Supervisor.queue.add(subscriber);
@@ -47,15 +44,26 @@ class Supervisor {
       }
     }
 
-    // sort subscribers by depth so they only get their depdendencies' latest values for this update cycle
-    const orderedSubscribers = Array.from(subscribers).sort((a, b) => a.depth - b.depth);
+    // sort nodes by depth so they only get their depdendencies' latest values for this update cycle
+    const orderedSubscribers = Array.from(Supervisor.queue).sort((a, b) => a.depth - b.depth);
 
+    // run the update for all the related nodes
     for (const subscriber of orderedSubscribers) {
-      if (Supervisor.shouldUpdate(subscriber)) {
+      // skip subscribers that do not need to update
+      if (!subscriber.willUpdate) continue;
+
+      // run an effect's update or directly deprecate a signal
+      if (subscriber instanceof Effect) {
         subscriber.update();
+      } else if (subscriber instanceof Signal) {
+        subscriber.deprecate();
       }
+
+      // tag the subscriber as updated
+      subscriber.willUpdate = false;
     }
 
+    // clear the queue and mark the update as done
     Supervisor.queue.clear();
     Supervisor.updating = false;
   }

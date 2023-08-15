@@ -74,16 +74,15 @@ class Async extends Effect {
       const args = resolve(this.arguments);
       // run the async operation
       if (args) this.run(...args);
+      // tag the signal's' subscribers for update
+      this.deprecate();
       // keep the current value while the async op is executed
       return this._value;
     };
 
-    // bind update to this so we can use it as an event listener
-    this.update = this.update.bind(this);
-
     // setup invalidation listeners
     for (const key of this.tags) {
-      window.addEventListener(`invalidate:${key}`, this.update);
+      window.addEventListener(`invalidate:${key}`, this.invalidate);
     }
 
     this.update();
@@ -107,6 +106,10 @@ class Async extends Effect {
 
   hasValue = () => {
     return this.value !== undefined;
+  };
+
+  invalidate = () => {
+    this.update();
   };
 
   /**
