@@ -4,8 +4,8 @@ A small library to add reactivity to the DOM.
 
 ### Documentation
 
-1. Reactivity: [./examples/a. reactive.js]()
-2. Async reactivity:[./examples/b. async.js]()
-3. DOM: [./examples/c. element.js]()
-4. Lifecycle: [./examples/d. lifecycle.js]()
-5. Control flow: [./examples/e. control flow.js]()
+1. Reactivity: [reactive.js](examples/reactive.js)
+2. Async reactivity:[async.js](examples/async.js)
+3. DOM: [element.js](examples/element.js)
+4. Lifecycle: [lifecycle.js](examples/lifecycle.js)
+5. Control flow: [control-flow.js](examples/control-flow.js)
