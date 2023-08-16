@@ -1,19 +1,19 @@
 export { element };
 
 /**
+ * @template {HTMLElement} E
+ * @overload
+ * @param {E} tag
+ * @param {((element: E) => void)} [init]
+ * @returns {T}
+ */
+
+/**
  * @template {keyof HTMLElementTagNameMap} T
  * @overload
  * @param {T} tag
  * @param {ElementInit<HTMLElementTagNameMap[T]>} [init]
  * @returns {HTMLElementTagNameMap[T]}
- */
-
-/**
- * @template {HTMLElement} T
- * @overload
- * @param {T} tag
- * @param {((element: T) => void)} [init]
- * @returns {T}
  */
 
 /**
@@ -24,8 +24,10 @@ export { element };
  */
 
 /**
- * @param {string | HTMLElement} tag
- * @param {ElementInit<HTMLElement>} [init]
+ * Create a DOM element or grab an existing one and apply some changes to it.
+ *
+ * @param {string | HTMLElement} tag The element's tag, or an exisiting element
+ * @param {ElementInit<HTMLElement>} [init] A string for text content, or a function to update the created DOM element
  * @returns {HTMLElement}
  */
 function element(tag, init) {

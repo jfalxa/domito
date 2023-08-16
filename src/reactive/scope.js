@@ -5,6 +5,8 @@ import { Supervisor } from "./supervisor.js";
 export { $scope, Scope };
 
 /**
+ * Create a reactive scope that will allow managing a collection of signals and effects.
+ *
  * @param {() => void} task
  * @returns {Scope}
  */
@@ -36,6 +38,8 @@ class Scope {
   }
 
   /**
+   * Run a task inside this scope
+   *
    * @template T
    * @param {() => T} task
    * @returns {T}
@@ -47,6 +51,9 @@ class Scope {
     return result;
   }
 
+  /**
+   * Clean up a scope by disposing of all its inner scopes, signals and effects
+   */
   dispose() {
     for (const scope of this.innerScopes) scope.dispose();
     for (const member of this.members) member.dispose();

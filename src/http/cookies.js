@@ -1,6 +1,8 @@
 export { getCookies, setCookie };
 
 /**
+ * Parse the list of cookies available and put them inside a Map
+ *
  * @returns {Map<string, string>}
  */
 function getCookies() {
@@ -14,6 +16,8 @@ function getCookies() {
 }
 
 /**
+ * Create a new cookie or update an existing one.
+ *
  * @param {string} name
  * @param {string} value
  * @param {CookieInit} [init]

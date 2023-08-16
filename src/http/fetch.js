@@ -1,6 +1,10 @@
 export { fetch, FetchResult, FetchError };
 
-/** @type {Fetch} */
+/**
+ * Send a request to the given URL and define its behavior through options
+ *
+ * @type {Fetch}
+ */
 async function fetch(url, options) {
   const fetchURL = new URL(String(url));
 
@@ -94,19 +98,22 @@ class FetchError extends Error {
 
 /**
  * @template T
- * @typedef {Omit<RequestInit, "body"> & {
- *  searchParams?: any;
- *  body?: BodyInit | Array<any> | Record<string, any>;
- *  duplex?: "full" | "half";
- *  onLoad?: (request: Request) => void;
- *  onError?: (error: Error) => void;
- *  onSuccess?: (data: T) => void;
- *  initSearchParams?: (searchParams: any) => URLSearchParams
- *  initBody?: (body: any) => BodyInit
- *  initRequest?: (request: Request) => Request;
- *  readResponse?: (response: Response) => Promise<any>;
- *  transformData?: (data: any) => Promise<T>
- * }} FetchOptions
+ * @typedef Options
+ * @property {any} [searchParams] A list of search params to add to the url
+ * @property {BodyInit | Array<any> | Record<string, any>} [body] The content of the body of the request
+ * @property {(request: Request) => void} [onLoad] A callback executed when the request starts
+ * @property {(error: Error) => void} [onError] A callback executed when the request fails
+ * @property {(data: T) => void} [onSuccess] A callback executed when the request succeeds
+ * @property {(searchParams: any) => URLSearchParams} [initSearchParams] A function to convert the `searchParams` value to a URLSearchParams
+ * @property {(body: any) => BodyInit} [initBody] A function to convert the `body` value to a BodyInit that you can send in a request
+ * @property {(request: Request) => Request} [initRequest] A function to modify the Request object that will be sent to the server
+ * @property {(response: Response) => Promise<any>} [readResponse] A function to tell how to fully download and parse the Response
+ * @property {(data: any) => Promise<T>} [transformData] A function to transform the body downloaded from the server
+ */
+
+/**
+ * @template T
+ * @typedef {Omit<RequestInit, "body"> & Options<T>} FetchOptions
  */
 
 /**

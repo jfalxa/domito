@@ -11,9 +11,12 @@ class Supervisor {
   /** @type {Scope | undefined} */ static scope; // tracks currently active Scope
 
   /** @type {boolean} */ static updating = false;
+  /** @type {Deferred} */ static updated;
   /** @type {ReactiveNodes} */ static queue = new Set();
 
   /**
+   * Enqueue a signal that was just changed for later processing
+   *
    * @param {Signal<any>} signal
    */
   static requestUpdate(signal) {
@@ -24,10 +27,15 @@ class Supervisor {
 
     // run the effects right after the current main task is finished
     // so we can queue all the signals that were changed together
+    Supervisor.updated = deferred();
     Supervisor.updating = true;
     queueMicrotask(Supervisor.update);
   }
 
+  /**
+   * Grab the currently enqueued signal and list the reactive nodes that will be affected by them.
+   * Then sort all these nodes in a way that allows us to do the minimum number of updates to reach the end result.
+   */
   static update() {
     const subscribers = /** @type {ReactiveNodes} */ (new Set());
 
@@ -65,10 +73,13 @@ class Supervisor {
 
     // clear the queue and mark the update as done
     Supervisor.queue.clear();
+    Supervisor.updated.done();
     Supervisor.updating = false;
   }
 
   /**
+   * Add a signal to the current scope
+   *
    * @param {Signal<any>} signal
    */
   static register(signal) {
@@ -79,6 +90,8 @@ class Supervisor {
   }
 
   /**
+   * Add a dependency to the reactive node in the current context
+   *
    * @param {Signal<any>} dependency
    */
   static registerDependency(dependency) {
@@ -88,6 +101,8 @@ class Supervisor {
   }
 
   /**
+   * Add a subscriber to the reactive node in the current context
+   *
    * @param {Signal<any>} subscriber
    */
   static registerSubscriber(subscriber) {
@@ -97,6 +112,8 @@ class Supervisor {
   }
 
   /**
+   * Run a function in the given context
+   *
    * @param {Effect<any>} context
    * @param {() => void} task
    */
@@ -121,3 +138,22 @@ class Supervisor {
     if (error) throw error;
   }
 }
+
+function deferred() {
+  /** @type {() => void}  */ let resolve;
+  /** @type {() => void}  */ let reject;
+
+  const deferred = /** @type {Deferred} */ (
+    new Promise((_resolve, _reject) => {
+      resolve = _resolve;
+      reject = _reject;
+    })
+  );
+
+  deferred.done = () => resolve();
+  deferred.cancel = () => reject();
+
+  return deferred;
+}
+
+/** @typedef {Promise<void> & { done: () => void; cancel: () => void }} Deferred */

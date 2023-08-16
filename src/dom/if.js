@@ -5,15 +5,17 @@ import { Effect } from "../reactive/effect.js";
 import { Scope } from "../reactive/scope.js";
 import { connected, disconnected } from "./lifecycle.js";
 
-export { $when };
+export { $if };
 
 /**
+ * Watch a reactive statement and render the callback only if the value is truthy
+ *
  * @template T
  * @param {Reactive<T>} $condition
- * @param {() => HTMLElement} callback
+ * @param {() => HTMLElement} render
  * @returns {DocumentFragment}
  */
-function $when($condition, callback) {
+function $if($condition, render) {
   /** @type {Scope | undefined} */ let scope;
   /** @type {HTMLElement | undefined} */ let element;
 
@@ -28,7 +30,7 @@ function $when($condition, callback) {
     if (value) {
       if (!scope && !element) {
         scope = new Scope(() => {
-          element = callback();
+          element = render();
           comment.after(element);
           connected(element);
         });

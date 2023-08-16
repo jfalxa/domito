@@ -5,17 +5,19 @@ import { resolve } from "./reactive.js";
 import { Signal } from "./signal.js";
 import { Supervisor } from "./supervisor.js";
 
-export { $async, Async, invalidate };
+export { $async, Async };
 
 /**
+ * Create an effect that runs an async operation, and track its evolution by updating reactive signals.
+ *
  * @template T
  * @template {Tuple} [A=[]]
- * @param {AsyncTask<T, A>} task
+ * @param {AsyncTask<T, A>} asyncTask
  * @param {AsyncInit<T, A>} [init]
  * @returns {Async<T, A>}
  */
-function $async(task, init) {
-  return new Async(task, init);
+function $async(asyncTask, init) {
+  return new Async(asyncTask, init);
 }
 
 /**
@@ -26,9 +28,6 @@ function $async(task, init) {
 class Async extends Effect {
   /** @private @type {AsyncTask<T, A>} */ asyncTask;
   /** @private @type {Reactive<A> | undefined} */ arguments;
-
-  /** @private @type {string[]} */ tags;
-  /** @private @type {string[]} */ invalidates;
 
   /** @private @type {(() => void) | undefined} */ onLoad;
   /** @private @type {((data: T) => void) | undefined} */ onSuccess;
@@ -44,7 +43,7 @@ class Async extends Effect {
    * @param {AsyncInit<T, A>} [init]
    */
   constructor(asyncTask, init = {}) {
-    super(() => init.initialData ?? null);
+    super(() => init.initialValue ?? null);
 
     this.$loading = new Signal("arguments" in init);
     this.$error = new Signal(null);
@@ -55,8 +54,6 @@ class Async extends Effect {
 
     this.asyncTask = asyncTask;
     this.arguments = init.arguments;
-    this.tags = init.tags ?? [];
-    this.invalidates = init.invalidates ?? [];
     this.onLoad = init.onLoad;
     this.onError = init.onError;
     this.onSuccess = init.onSuccess;
@@ -80,39 +77,54 @@ class Async extends Effect {
       return this._value;
     };
 
-    // setup invalidation listeners
-    for (const key of this.tags) {
-      window.addEventListener(`invalidate:${key}`, this.invalidate);
-    }
-
     this.update();
   }
 
+  /**
+   * Indicates wether the async task is in progress
+   */
   get loading() {
     return this.$loading.value;
   }
 
+  /**
+   * If an error happened during the async task, it will be available here.
+   * If there was no error, the value will be null.
+   */
   get error() {
     return this.$error.value;
   }
 
+  /**
+   * A function that returns the current loading state
+   *
+   * @returns {boolean}
+   */
   isLoading = () => {
     return this.$loading.value;
   };
 
+  /**
+   * A function that tells wether the async effect had an error
+   *
+   * @returns {boolean}
+   */
   hasError = () => {
     return this.$error.value !== undefined;
   };
 
+  /**
+   * A function that tells wether the async effect has a resolved value
+   *
+   * @returns {boolean}
+   */
   hasValue = () => {
     return this.value !== undefined;
   };
 
-  invalidate = () => {
-    this.update();
-  };
-
   /**
+   * Run the async effect task and track its evolution by updating the appropriate signals.
+   *
    * @param {A} args
    * @returns {Promise<T | null>}
    */
@@ -136,8 +148,6 @@ class Async extends Effect {
       this.$loading.mutate(() => false);
       this.$error.mutate(() => null);
 
-      invalidate(...this.invalidates);
-
       this.onSuccess?.(data);
     } catch (error) {
       // prevent updating the error if the async operation is stale
@@ -154,22 +164,6 @@ class Async extends Effect {
     Supervisor.requestUpdate(this);
     return this._value;
   }
-
-  dispose() {
-    super.dispose();
-    for (const key of this.tags) {
-      window.removeEventListener(`invalidate:${key}`, this.update);
-    }
-  }
-}
-
-/**
- * @param  {string[]} keys
- */
-function invalidate(...keys) {
-  for (const key of keys) {
-    window.dispatchEvent(new Event(`invalidate:${key}`));
-  }
 }
 
 /**
@@ -177,9 +171,7 @@ function invalidate(...keys) {
  * @template {Tuple} [A=[]]
  * @typedef {{
  *  arguments?: Reactive<A>;
- *  initialData?: T;
- *  tags?: string[];
- *  invalidates?: string[];
+ *  initialValue?: T;
  *  onLoad?: () => void;
  *  onSuccess?: (data: T) => void;
  *  onError?: (error: Error) => void;

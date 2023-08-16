@@ -5,7 +5,7 @@
 
 import { $, $scope, $async, Signal, Async } from "./reactive/index.js";
 import { element, render, onConnected, onDisconnected } from "./dom/index.js";
-import { $text, $when, $list, $map } from "./dom/index.js";
+import { $text, $if, $list, $map } from "./dom/index.js";
 import { Supervisor } from "./reactive/supervisor.js";
 import { debug } from "./reactive/debug.js";
 
@@ -44,16 +44,14 @@ function Main() {
     $sourceB.dispose();
   }
 
-  const $counter = $(1);
-
   const $waitFor = $(0);
+  const $counter = $(1);
 
   $(() => {
     $waitFor.value = $items.value.length * 400;
   });
 
   const $timed = $async((waitFor, counter) => sleep(waitFor * counter), {
-    tags: ["timed"],
     arguments: () => [$waitFor.value, $counter.value],
   });
 
@@ -125,7 +123,7 @@ function Main() {
         $(() => (button.disabled = $timed.loading));
       }),
 
-      $when($hasReachedTen, () =>
+      $if($hasReachedTen, () =>
         element("div", (div) => {
           const onResize = () => console.log("resize!");
           const onScroll = () => console.log("scroll!");
@@ -167,7 +165,7 @@ function Items({ $items, $modulo6, $timed }) {
           li.append(
             element("span", `List item #${item}`),
 
-            $when($modulo6, () =>
+            $if($modulo6, () =>
               element("b", (b) => {
                 onDisconnected(() => {
                   console.log("CIACIAO");
@@ -177,16 +175,16 @@ function Items({ $items, $modulo6, $timed }) {
               })
             ),
 
-            $when($timed.isLoading, () => element("h1", "Loading...")),
+            $if($timed.isLoading, () => element("h1", "Loading...")),
 
-            $when($timed.hasError, () =>
+            $if($timed.hasError, () =>
               element("h1", (h1) => {
                 h1.style.color = "red";
                 h1.append($text(() => $timed.error?.message));
               })
             ),
 
-            $when($timed.hasValue, () =>
+            $if($timed.hasValue, () =>
               element("h1", (h1) => {
                 h1.style.color = "green";
                 h1.append($text(() => $timed.value?.toLocaleString()));

@@ -1,6 +1,8 @@
 export { toFormData, toSearchParams, toJSON };
 
 /**
+ * Convert a JSON object to a FormData instance
+ *
  * @param {Record<string, any>} json
  * @returns {FormData}
  */
@@ -18,6 +20,8 @@ function toFormData(json) {
 }
 
 /**
+ * Convert a JSON object to a URLSearchParam instance
+ *
  * @param {Record<string, any>} json
  * @returns {URLSearchParams}
  */
@@ -35,6 +39,38 @@ function toSearchParams(json) {
 }
 
 /**
+ * Convert a FormData or URLSearchParams instance to a JSON object.
+ *
+ * You can optionally specify a simple schema to choose how to parse the initial data.
+ * It should be a flat object using the initial data keys as its own keys,
+ * and specifying functions as values in order to parse the initial data values.
+ *
+ * Example:
+ *
+ * ```
+ * const formData = new FormData()
+ * formData.append("count", "12")
+ * formData.append("checked", "true")
+ *
+ * const json = toJSON(formData, {
+ *  count: Number,
+ *  checked: (value) => value === "true"
+ * })
+ *
+ * // json == { count: 12, checked: true }
+ * ```
+ *
+ * You can also specify that a certain key has many values by wrapping the parser in an array in the schema:
+ *
+ * ```
+ * const formData = new FormData()
+ * formData.append("multiple", "first")
+ * formData.append("multiple", "last")
+ *
+ * const json = toJSON(formData, { multiple: [String] })
+ * // json == { multiple: ["first", "last"] }
+ * ```
+ *
  * @param {FormData | URLSearchParams} data
  * @param {Schema} [schema]
  * @returns {Record<string, any>}

@@ -4,12 +4,15 @@ import { Supervisor } from "./supervisor.js";
 export { $effect, Effect };
 
 /**
+ * Create an effect that will rerun its task every time the reactive values used inside change.
+ * If the task returns a value different than undefined, it also becomes a reactive signal.
+ *
  * @template T
- * @param {() => T} compute
+ * @param {() => T} task
  * @returns {Effect<T>}
  */
-function $effect(compute) {
-  return new Effect(compute);
+function $effect(task) {
+  return new Effect(task);
 }
 
 /**
@@ -29,7 +32,7 @@ class Effect extends Signal {
     this.update();
 
     // clean up any update requests added by the effect
-    // as we don't need reactivity when the constructor is called
+    // as we don't want reactivity during the constructor phase
     Supervisor.queue.clear();
   }
 
@@ -41,6 +44,9 @@ class Effect extends Signal {
     throw new Error("Effect values are read-only");
   }
 
+  /**
+   * Run the effect task in the appropriate context
+   */
   update() {
     if (!this.task) return;
     if (this.disposed) return;
@@ -51,7 +57,7 @@ class Effect extends Signal {
       const isVoid = result === undefined;
       const hasChange = result !== this._value;
 
-      if (!isVoid) this._value = result;
+      if (!isVoid && hasChange) this._value = result;
       if (isVoid || hasChange) this.deprecate();
     });
   }

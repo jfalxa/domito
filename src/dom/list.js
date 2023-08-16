@@ -9,12 +9,16 @@ import { connected, disconnected } from "./lifecycle.js";
 export { $list };
 
 /**
+ * Takes a reactive list and renders an element for each position in this list.
+ * The created DOM elements will be indexed by their corresponding position in the list.
+ * As the value at each index can change, the $item parameter of the render function will be a signal.
+ *
  * @template T
  * @param {Reactive<T[]>} $items
- * @param {($item: Signal<T>, index: number) => HTMLElement} callback
+ * @param {($item: Signal<T>, index: number) => HTMLElement} render
  * @returns {DocumentFragment}
  */
-function $list($items, callback) {
+function $list($items, render) {
   /** @type {Scope[]} */ const scopes = [];
   /** @type {HTMLElement[]} */ const children = [];
   /** @type {Signal<T>[]} */ const itemSignals = [];
@@ -34,7 +38,7 @@ function $list($items, callback) {
     for (let i = oldLength; i < newLength; i++) {
       scopes[i] = new Scope(() => {
         itemSignals[i] = itemSignals[i] ?? new Effect(() => value[i]);
-        children[i] = callback(itemSignals[i], i);
+        children[i] = render(itemSignals[i], i);
       });
 
       comment.before(children[i]);

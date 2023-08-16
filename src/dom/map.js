@@ -9,6 +9,10 @@ import { connected, disconnected } from "./lifecycle.js";
 export { $map };
 
 /**
+ * Maps a reactive list to DOM elements.
+ * Each created DOM element will be indexed by its corresponding value in the list.
+ * This means that if the value is moved in the list, the matching DOM element will be moved as well.
+ *
  * @template T
  * @param {T[] | Reactive<T[]>} $items
  * @param {(item: T, $index: Signal<number>) => HTMLElement} callback

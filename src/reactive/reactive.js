@@ -1,6 +1,8 @@
 import { Signal } from "./signal.js";
 
 /**
+ * Check if a value is a reactive statement
+ *
  * @param {any} value
  * @returns {value is Reactive<any>}
  */
@@ -9,6 +11,8 @@ export function isReactive(value) {
 }
 
 /**
+ * Extract the value from a potentially reactive statement
+ *
  * @template T
  * @param {T | Reactive<T>} $reactive
  * @returns {T}

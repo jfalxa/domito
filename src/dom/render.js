@@ -3,6 +3,8 @@ import { connected } from "./lifecycle.js";
 export { render };
 
 /**
+ * Run the callback to create a DOM element, append it to the root and run lifecycle callbacks.
+ *
  * @param {HTMLElement} root
  * @param {() => HTMLElement | DocumentFragment} create
  */

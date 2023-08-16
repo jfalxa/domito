@@ -6,6 +6,9 @@ import { fetch, FetchResult } from "./fetch";
 export { createClient, Client };
 
 /**
+ * Create a client to communicate with a server at the given URL.
+ * Specifying options will create shared behaviors for all the requests made with this client.
+ *
  * @param {string | URL} url
  * @param {FetchOptions<any>} [options]
  */
@@ -27,6 +30,10 @@ class Client {
   }
 
   /**
+   * Create a new client for a specific path inside the current client.
+   * Reuse the current client's options as defaults and optionnaly provide new ones.
+   * Newly provided options will overwrite base options.
+   *
    * @param {number | string | URL} url
    * @param {FetchOptions<any>} [options]
    * @returns {Client}
@@ -36,32 +43,62 @@ class Client {
     return new Client(new URL(String(url), this.url), routeOptions);
   }
 
-  /** @type {ClientFetch} */
+  /**
+   * Send a GET request to the server, using the client base configuration and locally specified options.
+   * If you do not provide an url, the client's base url will be used.
+   *
+   * @type {ClientFetch}
+   */
   get(url, options) {
     return this.fetch(url, { ...options, method: "GET" });
   }
 
-  /** @type {ClientFetch} */
+  /**
+   * Send a POST request to the server, using the client base configuration and locally specified options.
+   * If you do not provide an url, the client's base url will be used.
+   *
+   * @type {ClientFetch}
+   */
   post(url, options) {
     return this.fetch(url, { ...options, method: "POST" });
   }
 
-  /** @type {ClientFetch} */
+  /**
+   * Send a PUT request to the server, using the client base configuration and locally specified options.
+   * If you do not provide an url, the client's base url will be used.
+   *
+   * @type {ClientFetch}
+   */
   put(url, options) {
     return this.fetch(url, { ...options, method: "PUT" });
   }
 
-  /** @type {ClientFetch} */
+  /**
+   * Send a PATCH request to the server, using the client base configuration and locally specified options.
+   * If you do not provide an url, the client's base url will be used.
+   *
+   * @type {ClientFetch}
+   */
   patch(url, options) {
     return this.fetch(url, { ...options, method: "PATCH" });
   }
 
-  /** @type {ClientFetch} */
+  /**
+   * Send a DELETE request to the server, using the client base configuration and locally specified options.
+   * If you do not provide an url, the client's base url will be used.
+   *
+   * @type {ClientFetch}
+   */
   delete(url, options) {
     return this.fetch(url, { ...options, method: "DELETE" });
   }
 
-  /** @type {ClientFetch} */
+  /**
+   * Send a request to the server, using the client base configuration and locally specified options.
+   * If you do not provide an url, the client's base url will be used.
+   *
+   * @type {ClientFetch}
+   */
   fetch(url, options) {
     let fetchURL, fetchOptions;
 
@@ -78,5 +115,6 @@ class Client {
 }
 
 /**
+ * Send a request to the server, using the client base configuration and locally specified options.
  * @typedef {<T = void>(urlOrOptions?: number | string | URL | FetchOptions<T>, options?: FetchOptions<T>) => Promise<FetchResult<T>>} ClientFetch
  */

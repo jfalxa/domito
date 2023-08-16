@@ -6,6 +6,8 @@ import { Supervisor } from "./supervisor.js";
 export { $signal, Signal };
 
 /**
+ * Create a reactive value that can be tracked in order to create automatic reactions to its changes.
+ *
  * @template T
  * @param {T} value
  * @returns {Signal<T>}
@@ -46,6 +48,9 @@ class Signal {
     Supervisor.register(this);
   }
 
+  /**
+   * The current value of the signal. Using it inside an effect will bind the effect to this signal.
+   */
   get value() {
     Supervisor.registerDependency(this);
     return this._value;
@@ -59,19 +64,37 @@ class Signal {
     }
   }
 
+  /**
+   * Read the value of the signal without subscribing to it.
+   *
+   * @returns {T}
+   */
   peek() {
     return this._value;
   }
 
   /**
+   * Mutate the current value of the signal through a mutation function.
+   *
+   * The function takes the current value as parameter so you can mutate it if you want.
+   * If the function returns a value and this value is different than the previous one, the signal value will be changed and an update will be requested.
+   * If the function doesn't have a return or returns undefined, also request an update. That way, directly mutating the value will trigger updates as well.
+   *
    * @param {(value: T) => T | void} mutation
    */
   mutate(mutation) {
     const result = mutation(this._value);
-    if (result !== undefined) this._value = result;
-    Supervisor.requestUpdate(this);
+
+    const isVoid = result === undefined;
+    const hasChange = result !== this._value;
+
+    if (!isVoid && hasChange) this._value = result;
+    if (isVoid || hasChange) Supervisor.requestUpdate(this);
   }
 
+  /**
+   * Mark this signal and its subscribers as deprecated so we know they should be updated.
+   */
   deprecate() {
     if (this.disposed) return;
 
@@ -81,6 +104,8 @@ class Signal {
   }
 
   /**
+   * Add a new subscriber to this signal. Everytime this signal will be changed, its subscribers will react.
+   *
    * @param {Signal<any>} subscriber
    */
   subscribe(subscriber) {
@@ -91,6 +116,9 @@ class Signal {
     subscriber.move(this.depth + 1);
   }
 
+  /**
+   * Clean up the signal and remove it from the dependency graph
+   */
   dispose() {
     for (const dependency of this.dependencies) dependency.subscribers.delete(this);
     for (const subscriber of this.subscribers) subscriber.dispose();

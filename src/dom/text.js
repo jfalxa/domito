@@ -6,6 +6,8 @@ import { Effect } from "../reactive/effect.js";
 export { $text };
 
 /**
+ * Create a Text node and bind its textContent to a reactive value.
+ *
  * @param {Reactive<any>} content
  * @returns {Text}
  */

@@ -7,6 +7,7 @@ import { Effect } from "./effect.js";
 import { Signal } from "./signal.js";
 
 export { $ };
+export { Supervisor } from "./supervisor.js";
 export { $signal, Signal } from "./signal.js";
 export { $effect, Effect } from "./effect.js";
 export { $async, Async } from "./async.js";
@@ -28,6 +29,10 @@ export { isReactive, resolve } from "./reactive.js";
  */
 
 /**
+ * A shorthand function to quickly create signals and effects.
+ * If you pass it a function, it will build a new effect and use this function as effect task.
+ * Otherwise, the value will be used to initialize a reactive signal.
+ *
  * @template T
  * @param {T | Task<T>} value
  * @returns {Signal<T> | Effect<T>}
